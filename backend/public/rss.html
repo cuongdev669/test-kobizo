@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple RSS Reader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 20px;
+        }
+        h2 {
+            text-align: center;
+        }
+        .rss-container {
+            max-width: 800px;
+            margin: auto;
+        }
+        .rss-item {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            cursor: pointer;
+        }
+        .rss-item:hover {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Simple RSS Reader</h2>
+<div class="rss-container" id="rssFeed"></div>
+
+<script>
+    // Get query string
+    function getQueryParam(name) {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+    }
+
+    // Get rss_url from query string
+    const rssUrl = getQueryParam("rss_url") || "https://rss.nytimes.com/services/xml/rss/nyt/World.xml";
+
+    // Call proxy.php with rss_url
+    fetch(`proxy.php?rss_url=${encodeURIComponent(rssUrl)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                document.getElementById("rssFeed").innerHTML = `<p style="color:red;">${data.error}</p>`;
+                return;
+            }
+
+            const items = data.channel.item;
+            let html = "";
+            items.forEach(item => {
+                const title = item.title;
+                const link = item.link;
+
+                html += `
+                <div class="rss-item" onclick="confirmPrint('${title}', '${link}')">
+                    <h3>${title}</h3>
+                    <a href="${link}" target="_blank">${link}</a>
+                </div>
+            `;
+            });
+
+            document.getElementById("rssFeed").innerHTML = html;
+        })
+        .catch(error => console.error("Error load RSS:", error));
+
+    function confirmPrint(title, link) {
+        if (confirm("Print this post?")) {
+            fetch(`/proxy-print.php?url=${encodeURIComponent(link)}`)
+                .then(response => response.text())
+                .then(html => {
+                    const printWindow = window.open("", "_blank");
+                    if (printWindow) {
+                        printWindow.document.write(html);
+                        printWindow.document.close();
+                        printWindow.onload = function () {
+                            printWindow.print();
+                        };
+                    }
+                })
+                .catch(error => {
+                    alert("Can not load post: " + error);
+                });
+        }
+    }
+
+
+</script>
+
+</body>
+</html>
